@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VanssStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="toast" class="toast"></div>
+<a href="https://wa.me/6285333938526" class="float-wa" target="_blank"><i class="fab fa-whatsapp"></i></a>
+
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <div class="profile-wrapper">
+                <img class="profile-pic" src="https://ganga--link--ghhzdp9sv8hk.code.run/i/yipl92hn.jpg" alt="Profil">
+                <span class="online-dot"></span>
+            </div>
+            <div>
+                <h1><i class="fas fa-store"></i> VanssStore</h1>
+                <p style="color:#9ca3af;font-size:0.8rem">Jual akun ML & FF terpercaya</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="Cari..."></div>
+            <span id="adminStatus" style="font-size:0.8rem;color:#9ca3af"></span>
+            <button class="btn btn-promo" id="btnKelolaPromo" style="display:none"><i class="fas fa-tags"></i> Promo</button>
+            <button class="btn btn-admin" id="btnAdminMode"><i class="fas fa-user-shield"></i> Mode Admin</button>
+            <button class="btn btn-add" id="btnTambahProduk" style="display:none"><i class="fas fa-plus"></i> Tambah</button>
+        </div>
+    </div>
+
+    <div class="nav-menu">
+        <button class="nav-btn active" data-page="jualan"><i class="fas fa-store"></i> Produk</button>
+        <button class="nav-btn" data-page="curhatan"><i class="fas fa-comments"></i> Curhatan <span class="badge-count" id="testiCount">0</span></button>
+    </div>
+
+    <div id="pageJualan" class="page active">
+        <div class="stats">
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-box"></i></div><div><div class="stat-value" id="statTotal">0</div><div class="stat-label">Produk</div></div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-comments"></i></div><div><div class="stat-value" id="statTestimoni">0</div><div class="stat-label">Ulasan</div></div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div><div class="stat-value">100%</div><div class="stat-label">Trusted</div></div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-value">24/7</div><div class="stat-label">Fast</div></div></div>
+        </div>
+        <div class="kategori-tabs">
+            <button class="tab-btn active" data-kategori="semua">Semua Produk</button>
+            <button class="tab-btn" data-kategori="ML">Mobile Legends</button>
+            <button class="tab-btn" data-kategori="FF">Free Fire</button>
+        </div>
+        <div id="produkGrid" class="produk-grid"></div>
+        <div class="pagination" id="paginationContainer"></div>
+    </div>
+
+    <div id="pageCurhatan" class="page">
+        <div class="testimoni-section">
+            <div class="testimoni-title">💬 Curhatan & Ulasan Pembeli</div>
+            <div class="testimoni-sub">Bagikan pengalamanmu setelah membeli akun</div>
+            <div class="testimoni-form">
+                <h3><i class="fas fa-pen"></i> Tulis Ulasanmu</h3>
+                <input type="text" id="testiNama" placeholder="Nama kamu" maxlength="30">
+                <div class="rating-input">
+                    <span class="rating-label">Rating:</span>
+                    <div class="stars-input" id="starsInput">
+                        <i class="fas fa-star" data-star="1"></i>
+                        <i class="fas fa-star" data-star="2"></i>
+                        <i class="fas fa-star" data-star="3"></i>
+                        <i class="fas fa-star" data-star="4"></i>
+                        <i class="fas fa-star" data-star="5"></i>
+                    </div>
+                </div>
+                <textarea id="testiKomentar" placeholder="Ceritakan pengalamanmu..." maxlength="300"></textarea>
+                <button class="testimoni-submit" id="btnKirimTesti"><i class="fas fa-paper-plane"></i> Kirim Ulasan</button>
+            </div>
+            <div class="testimoni-list" id="testimoniList"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-title">🏪 VanssStore</div>
+        <p style="color:#9ca3af;font-size:0.85rem">Toko akun game terpercaya sejak 2024</p>
+        <div class="footer-info">
+            <span><i class="fas fa-clock"></i> Buka: 08.00 - 23.00 WIB</span>
+            <span><i class="fas fa-bolt"></i> Respon Cepat</span>
+            <span><i class="fas fa-shield"></i> 100% Aman</span>
+        </div>
+        <div class="footer-social">
+            <a href="https://wa.me/6285333938526" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/vnsss_3?stkn=Y2xhZmNkZXVucHMz" target="_blank"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.tiktok.com/@xgv_vanss?_r=1&_t=ZS-99c8UCYvt3Y" target="_blank"><i class="fab fa-tiktok"></i></a>
+        </div>
+        <div class="footer-copy">© 2025 VanssStore</div>
+    </div>
+</div>
+
+<div id="modalProduk" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle">Tambah Produk</h2>
+        <input type="text" id="inputNama" placeholder="Nama produk">
+        <input type="text" id="inputHarga" placeholder="Harga">
+        <select id="inputKategori"><option value="ML">Mobile Legends</option><option value="FF">Free Fire</option></select>
+        <textarea id="inputDeskripsi" placeholder="Deskripsi" rows="3"></textarea>
+        <label class="file-label"><i class="fas fa-image"></i> <span id="fileText">Pilih foto</span><input type="file" id="inputFoto" accept="image/*"></label>
+        <input type="hidden" id="editIndex" value="-1">
+        <div class="modal-actions"><button class="btn-save" id="btnSimpan">Simpan</button><button class="btn-cancel" id="btnBatal">Batal</button></div>
+    </div>
+</div>
+
+<div id="modalKonfirmasi" class="modal">
+    <div class="modal-content">
+        <h2>🛒 Konfirmasi Pembelian</h2>
+        <div id="konfirmasiDetail" style="color:#eef2ff;margin:12px 0;line-height:1.8"></div>
+        <label style="font-size:0.8rem;color:#9ca3af;display:block;margin-top:8px">Punya kode promo?</label>
+        <div class="promo-input-wrap"><input type="text" id="inputKodePromo" placeholder="Kode promo"><button id="btnPakaiPromo">Pakai</button></div>
+        <div class="promo-message" id="promoMessage"></div>
+        <div class="harga-ringkasan" id="hargaRingkasan">
+            <div class="harga-row"><span>Harga Awal</span><span id="ringkasanHargaAwal">Rp 0</span></div>
+            <div class="harga-row"><span>Diskon</span><span class="diskon" id="ringkasanDiskon">-Rp 0</span></div>
+            <div class="harga-row total"><span>Total</span><span id="ringkasanTotal">Rp 0</span></div>
+        </div>
+        <div class="modal-actions"><button class="btn-save" id="btnKonfirmasiYa"><i class="fab fa-whatsapp"></i> Beli</button><button class="btn-cancel" id="btnKonfirmasiBatal">Batal</button></div>
+    </div>
+</div>
+
+<div id="modalPromo" class="modal">
+    <div class="modal-content">
+        <h2><i class="fas fa-tags"></i> Kelola Promo</h2>
+        <div style="background:rgba(10,15,30,0.6);padding:14px;border-radius:16px;margin-bottom:14px">
+            <input type="hidden" id="promoEditKode" value="">
+            <input type="text" id="promoKode" placeholder="Kode promo" maxlength="20">
+            <input type="number" id="promoDiskon" placeholder="Diskon (%)" min="1" max="100">
+            <label>Berlaku sampai:</label>
+            <input type="date" id="promoExpired">
+            <button id="btnSimpanPromo" style="width:100%;padding:12px;border:none;border-radius:40px;font-weight:700;cursor:pointer;background:#facc15;color:#0a0f1e"><i class="fas fa-save"></i> Simpan Promo</button>
+        </div>
+        <div class="promo-list" id="promoList"></div>
+        <div class="modal-actions"><button class="btn-cancel" id="btnTutupPromo" style="flex:1">Tutup</button></div>
+    </div>
+</div>
+
+<div id="confirmModal" class="modal">
+    <div class="confirm-box">
+        <div class="confirm-icon"><i class="fas fa-trash-alt"></i></div>
+        <h2 id="confirmTitle">Hapus?</h2>
+        <p id="confirmMessage">Data akan dihapus permanen.</p>
+        <div class="confirm-actions">
+            <button class="confirm-no" id="confirmNo">Batal</button>
+            <button class="confirm-yes" id="confirmYes">Hapus</button>
+        </div>
+    </div>
+</div>
+
+<div id="passwordOverlay" class="password-overlay">
+    <div class="password-box">
+        <h2>🔐 Admin</h2>
+        <input type="password" id="inputPassword" placeholder="Password admin">
+        <div><button class="btn-pw-confirm" id="btnPwConfirm">OK</button><button class="btn-pw-cancel" id="btnPwCancel">Batal</button></div>
+        <div id="pwError" style="color:#ef4444;font-size:0.8rem;margin-top:10px"></div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -14,26 +14,55 @@ var isSyncing = false;
 
 function $(id) { return document.getElementById(id); }
 
-// ============ KOMPRES FOTO ============
-function compressImage(file, maxWidth, quality) {
+// ============ KOMPRES FOTO PINTAR (HD) ============
+// Coba beberapa level kualitas, cari yang paling HD tapi tetap <80KB
+function compressImage(file) {
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
         reader.onload = function(e) {
             var img = new Image();
             img.onload = function() {
-                var canvas = document.createElement('canvas');
-                var width = img.width;
-                var height = img.height;
-                if (width > maxWidth) {
-                    height = (maxWidth / width) * height;
-                    width = maxWidth;
+                // Coba beberapa kombinasi: dari HD ke kecil
+                var attempts = [
+                    {width: 1200, quality: 0.90}, // HD
+                    {width: 1000, quality: 0.85},
+                    {width: 900,  quality: 0.85},
+                    {width: 800,  quality: 0.80},
+                    {width: 700,  quality: 0.75},
+                    {width: 600,  quality: 0.75},
+                    {width: 500,  quality: 0.70}
+                ];
+                var bestResult = null;
+                
+                for (var i = 0; i < attempts.length; i++) {
+                    var att = attempts[i];
+                    var canvas = document.createElement('canvas');
+                    var w = img.width;
+                    var h = img.height;
+                    if (w > att.width) {
+                        h = (att.width / w) * h;
+                        w = att.width;
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    var ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, w, h);
+                    var dataUrl = canvas.toDataURL('image/jpeg', att.quality);
+                    var sizeKB = dataUrl.length / 1024;
+                    
+                    console.log('Kompresi ' + att.width + 'px q' + att.quality + ': ' + sizeKB.toFixed(1) + 'KB');
+                    
+                    // Kalau ukurannya di bawah 80KB, pakai ini (paling HD yang masih aman)
+                    if (sizeKB < 80) {
+                        bestResult = {dataUrl: dataUrl, sizeKB: sizeKB, width: w};
+                        break;
+                    }
+                    // Simpan sebagai backup kalau semua terlalu besar
+                    bestResult = {dataUrl: dataUrl, sizeKB: sizeKB, width: w};
                 }
-                canvas.width = width;
-                canvas.height = height;
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                var dataUrl = canvas.toDataURL('image/jpeg', quality);
-                resolve(dataUrl);
+                resolve(bestResult);
             };
             img.onerror = reject;
             img.src = e.target.result;
@@ -85,7 +114,7 @@ async function saveDataToCloud() {
         
         if (payload.length > 95000) {
             isSyncing = false;
-            showToast('⚠️ Data terlalu besar (' + sizeKB + 'KB / maks 100KB)', 'error');
+            showToast('⚠️ Data terlalu besar (' + sizeKB + 'KB). Hapus produk lama.', 'error');
             return false;
         }
         
@@ -125,7 +154,7 @@ function showToast(msg, type) {
     var t = $('toast'); if (!t) return;
     t.textContent = msg; t.className = 'toast ' + type;
     void t.offsetWidth; t.classList.add('show');
-    clearTimeout(t._timeout); t._timeout = setTimeout(function() { t.classList.remove('show'); }, 3000);
+    clearTimeout(t._timeout); t._timeout = setTimeout(function() { t.classList.remove('show'); }, 3500);
 }
 
 function showConfirm(title, msg, cb) {
@@ -200,7 +229,7 @@ function renderProducts() {
             var ri = products.indexOf(p);
             var badge = isNew(p.tanggal) ? '<span class="badge-new">✨ NEW</span>' : '';
             var foto = p.foto || 'https://placehold.co/400x300/1e293b/facc15?text=No+Image';
-            return '<div class="produk-card"><div class="produk-img-wrapper">' + badge + '<img class="produk-img" src="' + foto + '" alt="' + escapeHtml(p.nama) + '"></div><div class="produk-info"><div class="produk-nama">' + escapeHtml(p.nama) + '</div>' + (p.deskripsi ? '<div class="produk-deskripsi">' + escapeHtml(p.deskripsi) + '</div>' : '') + '<div class="produk-harga">' + Number(p.harga).toLocaleString('id-ID') + '</div><div class="produk-actions"><button class="btn-wa" onclick="window.confirmBeli(' + ri + ')"><i class="fab fa-whatsapp"></i> Beli</button>' + (isAdmin ? '<button class="btn-edit" onclick="window.editProduct(' + ri + ')"><i class="fas fa-pen"></i></button><button class="btn-delete" onclick="window.deleteProduct(' + ri + ')"><i class="fas fa-trash"></i></button>' : '') + '</div></div></div>';
+            return '<div class="produk-card"><div class="produk-img-wrapper">' + badge + '<img class="produk-img" src="' + foto + '" alt="' + escapeHtml(p.nama) + '" loading="lazy"></div><div class="produk-info"><div class="produk-nama">' + escapeHtml(p.nama) + '</div>' + (p.deskripsi ? '<div class="produk-deskripsi">' + escapeHtml(p.deskripsi) + '</div>' : '') + '<div class="produk-harga">' + Number(p.harga).toLocaleString('id-ID') + '</div><div class="produk-actions"><button class="btn-wa" onclick="window.confirmBeli(' + ri + ')"><i class="fab fa-whatsapp"></i> Beli</button>' + (isAdmin ? '<button class="btn-edit" onclick="window.editProduct(' + ri + ')"><i class="fas fa-pen"></i></button><button class="btn-delete" onclick="window.deleteProduct(' + ri + ')"><i class="fas fa-trash"></i></button>' : '') + '</div></div></div>';
         }).join('');
     }
     renderPagination(totalPages); updateStats();
@@ -322,11 +351,14 @@ $('btnSimpan').addEventListener('click', async function() {
     };
     
     if (fileInput.files && fileInput.files[0]) {
-        showToast('⏳ Kompres foto...', 'info');
+        showToast('⏳ Kompres foto HD...', 'info');
         try {
-            var compressed = await compressImage(fileInput.files[0], 500, 0.7);
-            await saveProduct(compressed);
+            var result = await compressImage(fileInput.files[0]);
+            console.log('✅ Hasil kompresi: ' + result.sizeKB.toFixed(1) + 'KB (' + result.width + 'px)');
+            showToast('📸 Foto: ' + result.sizeKB.toFixed(0) + 'KB, ' + result.width + 'px', 'info');
+            await saveProduct(result.dataUrl);
         } catch(e) {
+            console.error(e);
             showToast('❌ Gagal kompres foto', 'error');
         }
     } else {

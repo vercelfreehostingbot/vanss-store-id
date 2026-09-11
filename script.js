@@ -14,6 +14,35 @@ var isSyncing = false;
 
 function $(id) { return document.getElementById(id); }
 
+// ============ KOMPRES FOTO ============
+function compressImage(file, maxWidth, quality) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                var canvas = document.createElement('canvas');
+                var width = img.width;
+                var height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                var dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 // ============ JSONBIN API ============
 async function loadDataFromCloud() {
     try {
@@ -21,7 +50,7 @@ async function loadDataFromCloud() {
             method: 'GET',
             headers: { 'X-Master-Key': JSONBIN_MASTER_KEY }
         });
-        if (!res.ok) throw new Error('Gagal load: ' + res.status);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         var record = data.record || {};
         products = record.products || [];
@@ -30,7 +59,6 @@ async function loadDataFromCloud() {
         return true;
     } catch (e) {
         console.error('Load error:', e);
-        // Fallback ke localStorage
         try { products = JSON.parse(localStorage.getItem('vanss_products')) || []; } catch(x) { products = []; }
         try { promos = JSON.parse(localStorage.getItem('vanss_promos')) || []; } catch(x) { promos = []; }
         try { testimonials = JSON.parse(localStorage.getItem('vanss_testimonials')) || []; } catch(x) { testimonials = []; }
@@ -42,10 +70,24 @@ async function saveDataToCloud() {
     if (isSyncing) return;
     isSyncing = true;
     try {
-        // Simpan juga ke localStorage (backup)
         localStorage.setItem('vanss_products', JSON.stringify(products));
         localStorage.setItem('vanss_promos', JSON.stringify(promos));
         localStorage.setItem('vanss_testimonials', JSON.stringify(testimonials));
+        
+        var payload = JSON.stringify({
+            products: products,
+            promos: promos,
+            testimonials: testimonials
+        });
+        
+        var sizeKB = (payload.length / 1024).toFixed(2);
+        console.log('📤 Payload size:', sizeKB, 'KB');
+        
+        if (payload.length > 95000) {
+            isSyncing = false;
+            showToast('⚠️ Data terlalu besar (' + sizeKB + 'KB / maks 100KB)', 'error');
+            return false;
+        }
         
         var res = await fetch(JSONBIN_URL, {
             method: 'PUT',
@@ -53,13 +95,17 @@ async function saveDataToCloud() {
                 'Content-Type': 'application/json',
                 'X-Master-Key': JSONBIN_MASTER_KEY
             },
-            body: JSON.stringify({
-                products: products,
-                promos: promos,
-                testimonials: testimonials
-            })
+            body: payload
         });
-        if (!res.ok) throw new Error('Gagal save: ' + res.status);
+        
+        if (!res.ok) {
+            var errText = await res.text();
+            console.error('Save failed:', res.status, errText);
+            isSyncing = false;
+            showToast('❌ Server: ' + res.status, 'error');
+            return false;
+        }
+        
         isSyncing = false;
         return true;
     } catch (e) {
@@ -99,8 +145,6 @@ function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // NAVIGASI
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var page = this.dataset.page;
@@ -112,18 +156,13 @@ document.addEventListener('DOMContentLoaded', function() {
             window.scrollTo({top:0,behavior:'smooth'});
         });
     });
-
-    // START: load data dari cloud dulu
     bootApp();
 });
 
 async function bootApp() {
-    showToast('⏳ Memuat data...', 'info');
-    var ok = await loadDataFromCloud();
+    await loadDataFromCloud();
     renderProducts();
     renderTestimoni();
-    if (ok) showToast('✅ Data terbaru dimuat', 'success');
-    else showToast('⚠️ Gagal load, pakai data lokal', 'error');
 }
 
 // ============ RENDER PRODUK ============
@@ -257,11 +296,10 @@ window.deleteProduct = function(index) {
         showToast('⏳ Menyimpan...', 'info');
         var ok = await saveDataToCloud();
         if (ok) showToast('🗑️ Produk dihapus!', 'success');
-        else showToast('⚠️ Gagal sinkron ke server', 'error');
     });
 };
 
-$('btnSimpan').addEventListener('click', function() {
+$('btnSimpan').addEventListener('click', async function() {
     if (!isAdmin) return;
     var nama = $('inputNama').value.trim();
     var harga = $('inputHarga').value.trim();
@@ -281,13 +319,16 @@ $('btnSimpan').addEventListener('click', function() {
         showToast('⏳ Menyimpan ke server...', 'info');
         var ok = await saveDataToCloud();
         if (ok) showToast(editIndex >= 0 ? '✅ Produk diupdate!' : '✅ Produk ditambahkan!', 'success');
-        else showToast('⚠️ Gagal sinkron ke server', 'error');
     };
     
     if (fileInput.files && fileInput.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function(e) { saveProduct(e.target.result); };
-        reader.readAsDataURL(fileInput.files[0]);
+        showToast('⏳ Kompres foto...', 'info');
+        try {
+            var compressed = await compressImage(fileInput.files[0], 500, 0.7);
+            await saveProduct(compressed);
+        } catch(e) {
+            showToast('❌ Gagal kompres foto', 'error');
+        }
     } else {
         if (editIndex >= 0 && products[editIndex].foto) saveProduct(products[editIndex].foto);
         else saveProduct('');
@@ -340,7 +381,6 @@ window.deletePromo = function(index) {
         showToast('⏳ Menyimpan...', 'info');
         var ok = await saveDataToCloud();
         if (ok) showToast('🗑️ Promo dihapus!', 'success');
-        else showToast('⚠️ Gagal sinkron', 'error');
     });
 };
 
@@ -369,7 +409,6 @@ $('btnSimpanPromo').addEventListener('click', async function() {
     showToast('⏳ Menyimpan...', 'info');
     var ok = await saveDataToCloud();
     if (ok) showToast('✅ Promo tersimpan!', 'success');
-    else showToast('⚠️ Gagal sinkron', 'error');
 });
 
 $('btnTutupPromo').addEventListener('click', function() { $('modalPromo').classList.remove('open'); });
@@ -396,7 +435,6 @@ $('btnKirimTesti').addEventListener('click', async function() {
     showToast('⏳ Mengirim ulasan...', 'info');
     var ok = await saveDataToCloud();
     if (ok) showToast('✅ Terima kasih!', 'success');
-    else showToast('⚠️ Gagal kirim', 'error');
 });
 
 function renderTestimoni() {
@@ -422,7 +460,6 @@ window.hapusTestimoni = function(index) {
         showToast('⏳ Menyimpan...', 'info');
         var ok = await saveDataToCloud();
         if (ok) showToast('🗑️ Ulasan dihapus!', 'success');
-        else showToast('⚠️ Gagal sinkron', 'error');
     });
 };
 
@@ -482,11 +519,3 @@ $('btnPwCancel').addEventListener('click', function() {
 $('inputPassword').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') $('btnPwConfirm').click();
 });
-
-// ============ AUTO REFRESH ============
-// Setiap 60 detik, cek data terbaru dari server
-setInterval(async function() {
-    if (isAdmin) return; // Admin jangan auto-refresh biar gak ganggu edit
-    var ok = await loadDataFromCloud();
-    if (ok) { renderProducts(); renderTestimoni(); }
-}, 60000);
